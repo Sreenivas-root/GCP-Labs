@@ -2,13 +2,36 @@ from flask import current_app, Flask, redirect, render_template
 from flask import request, url_for
 import logging
 from google.cloud import logging as cloud_logging
-
+import storage
 import booksdb
+
+
+
+def upload_image_file(img):
+    """
+    Upload the user-uploaded file to Cloud Storage and retrieve its
+    publicly accessible URL.
+    """
+    if not img:
+        return None
+
+    public_url = storage.upload_file(
+        img.read(),
+        img.filename,
+        img.content_type
+    )
+
+    current_app.logger.info(
+        'Uploaded file %s as %s.', img.filename, public_url)
+
+    return public_url
+
 
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY='secret', # don't store SECRET_KEY in code in a production app
     MAX_CONTENT_LENGTH=8 * 1024 * 1024,
+    ALLOWED_EXTENSIONS=set(['png', 'jpg', 'jpeg', 'gif']),
 )
 
 app.debug = True
@@ -70,6 +93,12 @@ def add():
 
         # get book details from form
         data = request.form.to_dict(flat=True)
+	
+        image_url = upload_image_file(request.files.get('image'))
+
+        # If an image was uploaded, update the data to point to the image.
+        if image_url:
+            data['imageUrl'] = image_url
 
         # add book
         book = booksdb.create(data)
@@ -97,6 +126,13 @@ def edit(book_id):
 
         # get book details from form
         data = request.form.to_dict(flat=True)
+
+	
+        image_url = upload_image_file(request.files.get('image'))
+
+        # If an image was uploaded, update the data to point to the image.
+        if image_url:
+            data['imageUrl'] = image_url
 
         # update book
         book = booksdb.update(data, book_id)

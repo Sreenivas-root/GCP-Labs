@@ -1,19 +1,14 @@
-db = {}       # global in-memory python dictionary, key should always be a string
-next_id = 1   # next book ID to use
+from google.cloud import firestore
 
-
-def get_next_id():
+def document_to_dict(doc):
     """
-    Return the next ID. Automatically increments when retrieving one.
+    Convert Firestore document to a Python dictionary.
     """
-    global next_id
-    id = next_id
-
-    # next ID is 1 higher
-    next_id = next_id + 1
-
-    # return a string version of the ID
-    return str(id)
+    if not doc.exists:
+        return None
+    doc_dict = doc.to_dict()
+    doc_dict['id'] = doc.id
+    return doc_dict
 
 
 def read(book_id):
@@ -21,10 +16,11 @@ def read(book_id):
     Return the details for a single book.
     """
 
-    # retrieve a book from the database by ID
-    data = db[str(book_id)]
-    return data
+    db = firestore.Client()
 
+    # retrieve a book from the database by ID
+    book_ref = db.collection("books").document(book_id)
+    return document_to_dict(book_ref.get())
 
 def create(data):
     """
@@ -32,30 +28,24 @@ def create(data):
     """
 
     # get a new ID for the book
-    book_id = get_next_id()
-
-    # set the ID in the book data
-    data['id'] = book_id
+    db = firestore.Client()
 
     # store book in database
-    db[book_id] = data
-    return data
-
+    book_ref = db.collection("books").document()
+    book_ref.set(data)
+    return document_to_dict(book_ref.get())
 
 def update(data, book_id):
     """
     Update an existing book, and return the updated book's details.
     """
 
-    # book ID should always be a string
-    book_id_str = str(book_id)
+    db = firestore.Client()
 
-    # add ID to the book data
-    data['id'] = book_id_str
-
-    # update book in the database
-    db[book_id_str] = data
-    return data
+    # update book in database
+    book_ref = db.collection("books").document(book_id)
+    book_ref.set(data)
+    return document_to_dict(book_ref.get())
 
 
 def delete(book_id):
@@ -63,23 +53,32 @@ def delete(book_id):
     Delete a book in the database.
     """
 
+    db = firestore.Client()
+
     # remove book from database
-    del db[str(book_id)]
+    book_ref = db.collection("books").document(book_id)
+    book_ref.delete()
 
     # no return required
 
 
+
 def list():
     """
-    Return a list of all books in the database.
+    Return a list of all books in the database, ordered by title.
     """
 
     # empty list of books
     books = []
 
+    db = firestore.Client()
+
+    # get an ordered list of documents in the collection
+    docs = db.collection("books").order_by("title").stream()
+
     # retrieve each item in database and add to the list
-    for k in db:
-        books.append(db[k])
+    for doc in docs:
+        books.append(document_to_dict(doc))
 
     # return the list
     return books

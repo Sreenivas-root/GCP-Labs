@@ -17,6 +17,14 @@
             <p>{{book.author}}</p>
         </div>
     </a>
+            <div class="media-left">
+            {% if book.imageUrl %}
+            <img src="{{book.imageUrl}}" width="128" height="192" alt="book cover">
+            {% else %}
+            <img src="https://storage.googleapis.com/cloud-training/devapps-foundations/no-cover.png" width="128" height="192" alt="no book cover">
+            {% endif %}
+        </div>
+
 </div>
 {% else %}
 <p>No books found</p>
